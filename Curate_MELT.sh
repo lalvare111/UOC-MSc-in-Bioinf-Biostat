@@ -24,6 +24,9 @@ REPEAT_MASKED_BED="/path/to/repeat/masked/file.bed/"
 
 #path to bed file of the target exone sequencing regions (plus 200pb at both ends)
 EXOME_BED="/path/to/exome/bed/file.bed" 
+
+#Filtering read parameters. Takes into account the DP and AD paramenters.  
+READ_VALUES="'GT!="0/0" && DP>=numeric_value_1 && AD>=numeric_value_2 && (AD/(DP-AD))>=numeric_value_3'" #ex: 'GT!="0/0" && DP>=6 && AD>=2 && (AD/(DP-AD))>=0.2'
 ################################################################################
 
 # Iterates in each parent directory
@@ -54,7 +57,7 @@ for path in "${paths[@]}"; do
             bcftools concat -a "$sub_dir"/*.vcf.gz -o "$sub_dir/$concatenated_file_name".vcf.gz
             bcftools index "$sub_dir/$concatenated_file_name".vcf.gz
             bcftools view -R "${EXOME_BED}" "$sub_dir/$concatenated_file_name".vcf.gz -o "$sub_dir/$concatenated_file_name"_reg.vcf
-            bcftools view -i 'GT!="0/0" && DP>=6 && AD>=2 && (AD/(DP-AD))>=0.2' "$sub_dir/$concatenated_file_name"_reg.vcf | \
+            bcftools view -i "${READ_VALUES}" "$sub_dir/$concatenated_file_name"_reg.vcf | \
             bedtools intersect -v -a - -b "${REPEAT_MASKED_BED}" > "$sub_dir/$concatenated_file_name"_filtered_nested.vcf
         fi
     done
