@@ -9,6 +9,7 @@
 # of the process.                                                              #
 #                                                                              #
 # author: Luis Alvarez Fernandez                                               #
+# version: 1.0                                                                 #
 # email: lalvarezfernandez@uoc.edu                                             #
 # academic year: 2023-2014                                                     #
 ################################################################################
