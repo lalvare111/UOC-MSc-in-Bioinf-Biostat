@@ -16,7 +16,7 @@
 
 ###############################################################################
 # CONFIGURATION
-# path to ERVcaller folder
+# path to MELT folder
 MELT_CALLER="/path/to/MELT/"
 
 #path to samples folder
