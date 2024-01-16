@@ -1,16 +1,51 @@
 #!/bin/bash
 
+################################################################################
+# Inserts_Caller_ERV.sh                                                        #
+#                                                                              #
+# The script finds the BAM files for the selected samples, executes            #
+# the Perl script ERVcaller_v1.4.pl with the specified arguments, stores       #
+# the output in the appropriate directories and keeps a log file               #
+# of the process.                                                              #
+#                                                                              #
+# author: Luis Alvarez Fernandez                                               #
+# email: lalvarezfernandez@uoc.edu                                             #
+# academic year: 2023-2014                                                     #
+################################################################################
+
+###############################################################################
+# CONFIGURATION
+# path to ERVcaller folder
+ERV_CALLER="/path/to/ERVcaller/"
+
+#path to samples folder
+SAMPLES_FOLDER="/path/to/samples/"
+
+#path to reference genome
+REF_GENOME="/path/to/ref/"
+
+#ERV parameters
+#Specify the number of threads
+THREADS="number"
+
+#Specify the length of split reads used (20 bp by default; >=40 bp is recommend for reads in length of 150 bp)
+SPLIT_LENGHT="number"
+
+#Specify read length (bp), including: 100, 150, and 250 bp
+READ_LEN="number"
+################################################################################
+ 
 # Check if the input files exist and are provided
 if [ ! -f "$1" ] || [ ! -f "$2" ]; then
   echo "Input file(s) not found or provided."
-  echo "Usage: $0 <input_file_1> <input_file_2>"
+  echo "Usage: $0 <samples_file> <database_file>"
   exit 1
 fi
 
-# Read each line from the second input file containing names
+# Read each line from the database_file containing database names
 mapfile -t names < "$2"
 
-# Read each line from the first input file and process the information
+# Read each line from the samples_file and process the information
 while read -r line; do
   # Split each line into an array based on space delimiter
   read -ra values <<< "$line"
@@ -26,7 +61,7 @@ while read -r line; do
   technology="${values[1]}"
   coverage="${values[2]}"
   
-  # Process each name from the second file for the current line in the first file
+  # Process each name from the database_file for the current line in the samples_file
   for full_name in "${names[@]}"; do
     # Extract filename and extension
     filename=$(basename -- "$full_name")
@@ -36,10 +71,10 @@ while read -r line; do
     echo "Sample: $sample, Technology: $technology, Coverage: $coverage, Database: $full_name"
   
     # Create necessary directories and perform processing based on the extracted values
-    bam_name=$(find /home/ceromova/scratch_lui/MGE/samples -type f -name "${sample}*${technology}*${coverage}*.bam" -exec basename {} \; | sed 's/\.[^.]*$//')
-    bam_path=$(find /home/ceromova/scratch_lui/MGE/samples -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \;)
-    archivo_bam_result=$(find /home/ceromova/scratch_lui/MGE/samples -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \; | sed 's#/home/ceromova/scratch_lui/MGE/samples##')
-    results_folder="/home/ceromova/scratch_lui/MGE/results2$archivo_bam_result/$name"
+    bam_name=$(find "${SAMPLES_FOLDER}" -type f -name "${sample}*${technology}*${coverage}*.bam" -exec basename {} \; | sed 's/\.[^.]*$//')
+    bam_path=$(find "${SAMPLES_FOLDER}" -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \;)
+    archivo_bam_result=$(find "${SAMPLES_FOLDER}" -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \; | sed 's#${SAMPLES_FOLDER}##')
+    results_folder="${SAMPLES_FOLDER}/results$archivo_bam_result/$name"
     
     if [ -z "$bam_name" ]; then
       echo "No BAM file found for ${sample}_${technology}_${coverage}."
@@ -54,16 +89,16 @@ while read -r line; do
       
       log_file="${name}_${sample}_${technology}_${coverage}.log"
       
-      # Perform processing using extracted values (example: ERVcaller command)
+      # Perform processing using extracted values: ERVcaller script
       echo "Process start for ${sample}_${technology}_${coverage}: $(date)" > "$log_file"
-      perl /home/ceromova/scratch_lui/MGE/ERVcaller/ERVcaller_v1.4.pl \
+      perl "${ERV_CALLER}"/ERVcaller_v1.4.pl \
         -i "$bam_name" \
         -f .bam \
-        -H /home/ceromova/scratch_lui/MGE/ref/hs38DH.fa \
-        -T /home/ceromova/scratch_lui/MGE/ERVcaller/Database/"$full_name" \
+        -H "${REF_GENOME}" \
+        -T "${ERV_CALLER}"/Database/"$full_name" \
         -I "$bam_path"/ \
         -O "$results_folder/" \
-        -t 10 -S 20 -BWA_MEM -G -d WES -r 150 >> "$log_file" 2>&1
+        -t "${THREADS}" -S "${SPLIT_LENGHT}" -BWA_MEM -G -r "${READ_LEN}" >> "$log_file" 2>&1
       echo "Process end for ${sample}_${technology}_${coverage}: $(date)" >> "$log_file"
     fi
   done

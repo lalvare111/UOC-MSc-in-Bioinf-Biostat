@@ -1,13 +1,45 @@
 #!/bin/bash
 
+################################################################################
+# Inserts_Caller_MELT.sh                                                       #
+#                                                                              #
+# The script finds the BAM files for the selected samples, executes            #
+# the Java script MELT.jar with the specified arguments, stores                #
+# the output in the appropriate directories and keeps a log file               #
+# of the process.                                                              #
+#                                                                              #
+# author: Luis Alvarez Fernandez                                               #
+# email: lalvarezfernandez@uoc.edu                                             #
+# academic year: 2023-2014                                                     #
+################################################################################
+
+###############################################################################
+# CONFIGURATION
+# path to ERVcaller folder
+MELT_CALLER="/path/to/MELT/"
+
+#path to samples folder
+SAMPLES_FOLDER="/path/to/samples/"
+
+#path to reference genome
+REF_GENOME="path/to/ref/"
+
+#MELT parameters
+#Specify if the project is exome based
+EXOME="true/false"
+
+#Specify read length (bp)
+READ_LEN="number"
+################################################################################
+
 # Check if the input files exist and are provided
 if [ ! -f "$1" ] || [ ! -f "$2" ]; then
   echo "Input file(s) not found or provided."
-  echo "Usage: $0 <input_file_1> <input_file_2>"
+  echo "Usage: $0 <samples_file> <database_file>"
   exit 1
 fi
 
-# Read each line from the second input file containing names
+# Read each line from the database_file containing database names
 mapfile -t names < "$2"
 
 # Read each line from the first input file and process the information
@@ -26,7 +58,7 @@ while read -r line; do
   technology="${values[1]}"
   coverage="${values[2]}"
   
-  # Process each name from the second file for the current line in the first file
+  # Process each name from the second file for the current line in the samples_file
   for full_name in "${names[@]}"; do
     # Extract filename and extension
     filename=$(basename -- "$full_name")
@@ -36,10 +68,10 @@ while read -r line; do
     echo "Sample: $sample, Technology: $technology, Coverage: $coverage, Database: $full_name"
   
     # Create necessary directories and perform processing based on the extracted values
-    bam_name=$(find /media/luis/TOSHIBA_EXT/TFM/SAMPLES -type f -name "${sample}*${technology}*${coverage}*.bam" -exec basename {} \; | sed 's/\.[^.]*$//')
-    bam_path=$(find /media/luis/TOSHIBA_EXT/TFM/SAMPLES -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \;)
-    archivo_bam_result=$(find /media/luis/TOSHIBA_EXT/TFM/SAMPLES -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \; | sed 's#/media/luis/TOSHIBA_EXT/TFM/SAMPLES##')
-    results_folder="/media/luis/TOSHIBA_EXT/TFM/Resultados$archivo_bam_result/$name"
+    bam_name=$(find "${SAMPLES_FOLDER}" -type f -name "${sample}*${technology}*${coverage}*.bam" -exec basename {} \; | sed 's/\.[^.]*$//')
+    bam_path=$(find "${SAMPLES_FOLDER}" -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \;)
+    archivo_bam_result=$(find "${SAMPLES_FOLDER}" -type f -name "${sample}*${technology}*${coverage}*.bam" -exec dirname {} \; | sed 's#${SAMPLES_FOLDER}##')
+    results_folder="${SAMPLES_FOLDER}/Resultados$archivo_bam_result/$name"
     
     if [ -z "$bam_name" ]; then
       echo "No BAM file found for ${sample}_${technology}_${coverage}."
@@ -54,17 +86,17 @@ while read -r line; do
       
       log_file="${name}_${sample}_${technology}_${coverage}.log"
       
-      # Perform processing using extracted values (example: ERVcaller command)
+      # Perform processing using extracted values: Melt_script
       echo "Process start for ${sample}_${technology}_${coverage}: $(date)" > "$log_file"
-      java -jar -Xmx4G /media/luis/TOSHIBA_EXT/TFM/MELTv2.2.2/MELT.jar Single \
+      java -jar -Xmx4G "${MELT_CALLER}"/MELT.jar Single \
       	-c $(echo "${coverage}" | sed 's/x//g') \
-      	-h /media/luis/TOSHIBA_EXT/TFM/refs/hs38DH.fa \
+      	-h "${REF_GENOME}" \
       	-bamfile "${bam_path}/${bam_name}".bam \
-      	-n /media/luis/TOSHIBA_EXT/TFM/MELTv2.2.2/add_bed_files/Hg38/Hg38.genes.bed \
-      	-t /media/luis/TOSHIBA_EXT/TFM/MELTv2.2.2/"$full_name" \
-      	-w /media/luis/TOSHIBA_EXT/TFM/Resultados"$archivo_bam_result"/MELT_EX_TE_consensus/"${sample}" \
-      	-exome true \
-      	-e 150 >> "$log_file" 2>&1
+      	-n "${MELT_CALLER}"/add_bed_files/Hg38/Hg38.genes.bed \
+      	-t "${MELT_CALLER}"/"$full_name" \
+      	-w "${results_folder}" \
+      	-exome "${EXOME}" \
+      	-e "${READ_LEN}" >> "$log_file" 2>&1
       echo "Process end for ${sample}_${technology}_${coverage}: $(date)" >> "$log_file"
     fi
   done
